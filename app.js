@@ -8,7 +8,8 @@ function loadData() {
     return {
       settings: { defaultCycleLength: 28, defaultPeriodLength: 5 },
       periods: [],   // [{ start: 'YYYY-MM-DD', end: 'YYYY-MM-DD' | null }]
-      notes: {}      // { 'YYYY-MM-DD': 'text' }
+      notes: {},     // { 'YYYY-MM-DD': 'text' }
+      together: []   // ['YYYY-MM-DD', ...] — days logged as time together
     };
   }
   try {
@@ -16,13 +17,15 @@ function loadData() {
     parsed.settings = parsed.settings || { defaultCycleLength: 28, defaultPeriodLength: 5 };
     parsed.periods = parsed.periods || [];
     parsed.notes = parsed.notes || {};
+    parsed.together = parsed.together || [];
     return parsed;
   } catch (e) {
     console.error('Could not read saved data, starting fresh.', e);
     return {
       settings: { defaultCycleLength: 28, defaultPeriodLength: 5 },
       periods: [],
-      notes: {}
+      notes: {},
+      together: []
     };
   }
 }
@@ -32,6 +35,25 @@ function saveData() {
 }
 
 let state = loadData();
+
+/* ---------- Icon set (inline SVG, tinted via currentColor) ---------- */
+
+const HEART_PATH = 'M12 21s-7.5-4.6-10-9.1C.5 8.8 1.9 5.5 5 4.8c2-.5 4 .4 5 2.2 1-1.8 3-2.7 5-2.2 3.1.7 4.5 4 3 7.1-2.5 4.5-10 9.1-10 9.1Z';
+
+const ICONS = {
+  drop: `<svg viewBox="0 0 24 24" class="stage-icon"><path style="fill:currentColor" d="M12 2C12 2 5 11 5 15.5C5 19.09 8.13 22 12 22C15.87 22 19 19.09 19 15.5C19 11 12 2 12 2Z"/></svg>`,
+  leaf: `<svg viewBox="0 0 24 24" class="stage-icon"><path style="fill:currentColor" d="M20 4C10.5 4.5 4 11 4 18.5c.6.2 1.3.3 2 .3C15 18.8 20 12.7 20 4Z"/><path style="fill:none;stroke:currentColor;stroke-width:1.3;stroke-linecap:round" opacity="0.7" d="M6 18C10 13 14 9 19 5"/></svg>`,
+  egg: `<svg viewBox="0 0 24 24" class="stage-icon"><circle style="fill:none;stroke:currentColor;stroke-width:1.6" cx="12" cy="12" r="7"/><circle style="fill:currentColor" cx="9.6" cy="9.8" r="2.5"/></svg>`,
+  best: `<svg viewBox="0 0 24 24" class="stage-icon"><path style="fill:currentColor" opacity="0.5" transform="translate(-3,-2) scale(0.72)" d="${HEART_PATH}"/><path style="fill:currentColor" transform="translate(3,2) scale(0.72)" d="${HEART_PATH}"/></svg>`,
+  heart: `<svg viewBox="0 0 24 24" class="stage-icon"><path style="fill:currentColor" d="${HEART_PATH}"/></svg>`
+};
+
+function populateStaticIcons() {
+  document.querySelectorAll('[data-icon]').forEach(el => {
+    const name = el.getAttribute('data-icon');
+    if (ICONS[name]) el.innerHTML = ICONS[name];
+  });
+}
 
 /* ---------- Date helpers (local-time safe, no timezone drift) ---------- */
 
@@ -165,7 +187,8 @@ function inRange(date, start, end) {
 
 function getDayStatus(date, cyclesData) {
   const { cycles } = cyclesData;
-  const status = { period: false, periodProjected: false, fertile: false, ovulation: false, best: false };
+  const status = { period: false, periodProjected: false, fertile: false, ovulation: false, best: false, together: false };
+  status.together = state.together.includes(toKey(date));
   for (const c of cycles) {
     if (inRange(date, c.start, c.periodEnd)) {
       if (c.isLogged) status.period = true;
@@ -215,28 +238,41 @@ function renderCalendar() {
     cell.className = 'day-cell';
     if (sameDay(date, today)) cell.classList.add('day-cell--today');
 
+    // Priority: logged period > predicted period > ovulation > best day > fertile window
+    let bgClass = null, iconKind = null, iconClass = null;
+    if (status.period) { bgClass = 'day-cell--period'; iconKind = 'drop'; iconClass = 'cell-icon--period'; }
+    else if (status.periodProjected) { bgClass = 'day-cell--period-predicted'; iconKind = 'drop'; iconClass = 'cell-icon--period'; }
+    else if (status.ovulation) { bgClass = 'day-cell--ovulation'; iconKind = 'egg'; iconClass = 'cell-icon--ovulation'; }
+    else if (status.best) { bgClass = 'day-cell--best'; iconKind = 'best'; iconClass = 'cell-icon--best'; }
+    else if (status.fertile) { bgClass = 'day-cell--fertile'; iconKind = 'leaf'; iconClass = 'cell-icon--fertile'; }
+
+    if (bgClass) cell.classList.add(bgClass);
+
+    const top = document.createElement('div');
+    top.className = 'cell-top';
+
     const number = document.createElement('span');
     number.className = 'day-number';
     number.textContent = day;
-    cell.appendChild(number);
+    top.appendChild(number);
 
-    const tags = document.createElement('span');
-    tags.className = 'day-tags';
-    if (status.period) tags.appendChild(dot('period'));
-    if (status.fertile && !status.ovulation) tags.appendChild(dot('fertile'));
-    if (status.ovulation) tags.appendChild(dot('ovulation'));
-    else if (status.best) tags.appendChild(dot('best'));
-    cell.appendChild(tags);
-
-    if (status.period) {
-      cell.appendChild(underline('period'));
-    } else if (status.periodProjected) {
-      cell.appendChild(underline('period-predicted'));
-    } else if (status.ovulation) {
-      cell.appendChild(underline('ovulation'));
-    } else if (status.fertile) {
-      cell.appendChild(underline('fertile'));
+    if (iconKind) {
+      const icon = document.createElement('span');
+      icon.className = `cell-icon ${iconClass}`;
+      icon.innerHTML = ICONS[iconKind];
+      top.appendChild(icon);
     }
+    cell.appendChild(top);
+
+    const bottom = document.createElement('div');
+    bottom.className = 'cell-bottom';
+    if (status.together) {
+      const badge = document.createElement('span');
+      badge.className = 'cell-icon cell-icon--together';
+      badge.innerHTML = ICONS.heart;
+      bottom.appendChild(badge);
+    }
+    cell.appendChild(bottom);
 
     cell.addEventListener('click', () => openDayPanel(date));
     calendarGrid.appendChild(cell);
@@ -244,18 +280,8 @@ function renderCalendar() {
 
   renderStats(cyclesData, today);
   renderHistory(cyclesData);
-}
-
-function dot(kind) {
-  const s = document.createElement('span');
-  s.className = `tag-dot tag-dot--${kind}`;
-  return s;
-}
-
-function underline(kind) {
-  const s = document.createElement('span');
-  s.className = `day-underline day-underline--${kind}`;
-  return s;
+  renderTogetherInsight(cyclesData, today);
+  renderJourney(cyclesData, today);
 }
 
 /* ---------- Stats ledger ---------- */
@@ -310,6 +336,126 @@ function renderHistory(cyclesData) {
   list.innerHTML = rows.join('');
 }
 
+/* ---------- Timing insight (time together vs. fertile window) ---------- */
+
+function findActiveCycle(cycles, date) {
+  return cycles.find(c => stripTime(date) >= stripTime(c.start) && stripTime(date) < stripTime(c.nextStart));
+}
+
+function renderTogetherInsight(cyclesData, today) {
+  const el = document.getElementById('togetherInsight');
+  const { periods, cycles } = cyclesData;
+  if (!periods.length) {
+    el.textContent = 'Log a period to see timing insights.';
+    return;
+  }
+  const activeCycle = findActiveCycle(cycles, today) || cycles[cycles.length - 1];
+  const togetherInCycle = state.together.filter(key => {
+    const d = parseKey(key);
+    return stripTime(d) >= stripTime(activeCycle.start) && stripTime(d) < stripTime(activeCycle.nextStart);
+  });
+  const inFertile = togetherInCycle.filter(key => inRange(parseKey(key), activeCycle.fertileStart, activeCycle.fertileEnd));
+
+  let text = '';
+  if (togetherInCycle.length === 0) {
+    text = `Nothing logged yet this cycle. Fertile window: <strong>${formatMed(activeCycle.fertileStart)} – ${formatMed(activeCycle.fertileEnd)}</strong>.`;
+  } else {
+    text = `<strong>${togetherInCycle.length}</strong> time${togetherInCycle.length === 1 ? '' : 's'} together logged this cycle, <strong>${inFertile.length}</strong> within the fertile window.`;
+  }
+
+  if (stripTime(today) <= stripTime(activeCycle.fertileEnd) && inFertile.length === 0) {
+    text += ` Fertile window ${stripTime(today) < stripTime(activeCycle.fertileStart) ? 'starts' : 'is open'} — nothing logged there yet.`;
+  }
+
+  el.innerHTML = text;
+}
+
+/* ---------- Cycle journey diagram ---------- */
+
+const TUBE_LEFT = { p0: { x: 70, y: 92 }, p1: { x: 70, y: 150 }, p2: { x: 150, y: 168 }, p3: { x: 188, y: 174 } };
+const TUBE_RIGHT = { p0: { x: 330, y: 92 }, p1: { x: 330, y: 150 }, p2: { x: 250, y: 168 }, p3: { x: 212, y: 174 } };
+
+function bezierPoint(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  const x = mt ** 3 * p0.x + 3 * mt ** 2 * t * p1.x + 3 * mt * t ** 2 * p2.x + t ** 3 * p3.x;
+  const y = mt ** 3 * p0.y + 3 * mt ** 2 * t * p1.y + 3 * mt * t ** 2 * p2.y + t ** 3 * p3.y;
+  return { x, y };
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+function setMarkerPosition(p) {
+  const marker = document.getElementById('eggMarker');
+  marker.style.left = (p.x / 400 * 100) + '%';
+  marker.style.top = (p.y / 260 * 100) + '%';
+}
+
+function renderJourney(cyclesData, today) {
+  const caption = document.getElementById('journeyCaption');
+  const eggMarker = document.getElementById('eggMarker');
+  const follicleLeft = document.getElementById('follicleLeft');
+  const follicleRight = document.getElementById('follicleRight');
+  const { periods, cycles } = cyclesData;
+
+  if (!periods.length) {
+    follicleLeft.setAttribute('r', 4);
+    follicleRight.setAttribute('r', 4);
+    eggMarker.style.opacity = 0;
+    eggMarker.classList.remove('egg-marker--pulse');
+    caption.textContent = 'Log your first period to see where things stand in your cycle.';
+    return;
+  }
+
+  const activeCycle = findActiveCycle(cycles, today) || cycles[cycles.length - 1];
+  const cycleIndex = cycles.indexOf(activeCycle);
+  const side = cycleIndex % 2 === 0 ? 'left' : 'right';
+  const tube = side === 'left' ? TUBE_LEFT : TUBE_RIGHT;
+  const activeFollicle = side === 'left' ? follicleLeft : follicleRight;
+  const restingFollicle = side === 'left' ? follicleRight : follicleLeft;
+  restingFollicle.setAttribute('r', 4);
+
+  const dayNum = daysBetween(activeCycle.start, today) + 1;
+  eggMarker.classList.remove('egg-marker--pulse');
+
+  if (stripTime(today) <= stripTime(activeCycle.periodEnd)) {
+    activeFollicle.setAttribute('r', 4);
+    eggMarker.style.opacity = 0;
+    caption.textContent = `Cycle day ${dayNum} — the uterine lining is shedding (period).`;
+
+  } else if (stripTime(today) < stripTime(activeCycle.ovulation)) {
+    const span = daysBetween(activeCycle.periodEnd, activeCycle.ovulation) || 1;
+    const progress = clamp(daysBetween(activeCycle.periodEnd, today) / span, 0, 1);
+    activeFollicle.setAttribute('r', (4 + progress * 11).toFixed(1));
+    eggMarker.style.opacity = 0;
+    caption.textContent = `Cycle day ${dayNum} — a follicle is maturing in the ovary, preparing an egg for around ${formatMed(activeCycle.ovulation)}.`;
+
+  } else if (sameDay(today, activeCycle.ovulation)) {
+    activeFollicle.setAttribute('r', 15);
+    setMarkerPosition(tube.p0);
+    eggMarker.style.opacity = 1;
+    eggMarker.classList.add('egg-marker--pulse');
+    caption.textContent = `Cycle day ${dayNum} — ovulation day. The egg is expected to release today.`;
+
+  } else {
+    const travelEnd = addDays(activeCycle.ovulation, 5);
+    if (stripTime(today) <= stripTime(travelEnd)) {
+      activeFollicle.setAttribute('r', 5);
+      const t = clamp(daysBetween(activeCycle.ovulation, today) / 5, 0, 1);
+      setMarkerPosition(bezierPoint(tube.p0, tube.p1, tube.p2, tube.p3, t));
+      eggMarker.style.opacity = 1;
+      const daysSince = daysBetween(activeCycle.ovulation, today);
+      caption.textContent = daysSince === 1
+        ? `Cycle day ${dayNum} — the egg has just been released and is at its most fertile. This is typically the highest-chance window if you're trying to conceive.`
+        : `Cycle day ${dayNum} — moving into the luteal phase, following ovulation.`;
+    } else {
+      activeFollicle.setAttribute('r', 5);
+      setMarkerPosition(bezierPoint(tube.p0, tube.p1, tube.p2, tube.p3, 1));
+      eggMarker.style.opacity = 1;
+      caption.textContent = `Cycle day ${dayNum} — in the luteal phase, waiting to see if the next period begins around ${formatMed(activeCycle.nextStart)}.`;
+    }
+  }
+}
+
 /* ---------- Day detail panel ---------- */
 
 const overlay = document.getElementById('overlay');
@@ -320,6 +466,7 @@ const dayNotes = document.getElementById('dayNotes');
 const markStartBtn = document.getElementById('markStart');
 const markEndBtn = document.getElementById('markEnd');
 const clearPeriodBtn = document.getElementById('clearPeriod');
+const markTogetherBtn = document.getElementById('markTogether');
 
 function openDayPanel(date) {
   selectedDateKey = toKey(date);
@@ -339,12 +486,14 @@ function refreshDayPanelStatus(date) {
   if (status.ovulation) labels.push('Predicted ovulation day');
   else if (status.best) labels.push('Best day to try');
   else if (status.fertile) labels.push('Fertile window');
+  if (status.together) labels.push('Time together logged');
   dayPanelStatus.textContent = labels.length ? labels.join(' · ') : 'No events logged for this day';
 
   const isStart = state.periods.some(p => p.start === selectedDateKey);
   const isEnd = state.periods.some(p => p.end === selectedDateKey);
   markStartBtn.classList.toggle('pill-btn--active', isStart);
   markEndBtn.classList.toggle('pill-btn--active', isEnd);
+  markTogetherBtn.classList.toggle('pill-btn--active', state.together.includes(selectedDateKey));
 }
 
 function closeDayPanel() {
@@ -396,6 +545,16 @@ clearPeriodBtn.addEventListener('click', () => {
     const endMatch = state.periods.find(p => p.end === selectedDateKey);
     if (endMatch) endMatch.end = null;
   }
+  saveData();
+  renderCalendar();
+  refreshDayPanelStatus(parseKey(selectedDateKey));
+});
+
+markTogetherBtn.addEventListener('click', () => {
+  if (!selectedDateKey) return;
+  const idx = state.together.indexOf(selectedDateKey);
+  if (idx !== -1) state.together.splice(idx, 1);
+  else state.together.push(selectedDateKey);
   saveData();
   renderCalendar();
   refreshDayPanelStatus(parseKey(selectedDateKey));
@@ -455,4 +614,5 @@ periodLenInput.addEventListener('change', () => {
 
 /* ---------- Init ---------- */
 
+populateStaticIcons();
 renderCalendar();
