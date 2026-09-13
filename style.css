@@ -10,6 +10,9 @@
   --sage-soft: #E4EBE0;
   --amber: #BD8A3D;
   --amber-soft: #F3E7D2;
+  --best: #C97B63;
+  --best-soft: #F3E1D8;
+  --together: #8C5E82;
 
   --font-display: "Fraunces", serif;
   --font-body: "Work Sans", sans-serif;
@@ -158,7 +161,7 @@ button {
   position: relative;
   aspect-ratio: 1 / 0.92;
   border: 1px solid transparent;
-  padding: 8px 6px 6px;
+  padding: 7px 6px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -166,16 +169,29 @@ button {
   text-align: left;
   font-family: var(--font-body);
   color: var(--ink);
-  border-radius: 4px;
-  transition: background 0.12s ease;
+  border-radius: 6px;
+  transition: background 0.12s ease, filter 0.12s ease;
 }
 
 .day-cell:hover:not(.day-cell--empty) {
-  background: var(--paper-raised);
+  filter: brightness(0.97);
 }
 
 .day-cell--empty {
   visibility: hidden;
+}
+
+.day-cell--period { background: var(--bloom-soft); }
+.day-cell--period-predicted { background: color-mix(in srgb, var(--bloom-soft) 55%, var(--paper)); }
+.day-cell--ovulation { background: var(--amber-soft); }
+.day-cell--best { background: var(--best-soft); }
+.day-cell--fertile { background: var(--sage-soft); }
+
+.cell-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
 }
 
 .day-number {
@@ -188,37 +204,38 @@ button {
   font-weight: 600;
 }
 
-.day-tags {
+.day-cell--period-predicted .cell-icon,
+.day-cell--period-predicted .day-number {
+  opacity: 0.55;
+}
+
+.cell-bottom {
   display: flex;
-  gap: 3px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-.tag-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  display: inline-block;
+.cell-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: block;
 }
 
-.tag-dot--period { background: var(--bloom); }
-.tag-dot--fertile { background: var(--sage); }
-.tag-dot--ovulation { background: var(--amber); }
-.tag-dot--best { background: var(--amber); box-shadow: 0 0 0 2px var(--amber-soft); }
-
-.day-underline {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  bottom: 0;
-  height: 3px;
-  border-radius: 2px;
+.cell-icon .stage-icon {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.day-underline--period { background: var(--bloom); }
-.day-underline--period-predicted { background: repeating-linear-gradient(90deg, var(--bloom) 0 4px, transparent 4px 7px); }
-.day-underline--fertile { background: var(--sage); }
-.day-underline--ovulation { background: var(--amber); height: 4px; }
+.cell-icon--period { color: var(--bloom); }
+.cell-icon--fertile { color: var(--sage); }
+.cell-icon--ovulation { color: var(--amber); }
+.cell-icon--best { color: var(--best); }
+.cell-icon--together {
+  color: var(--together);
+  width: 12px;
+  height: 12px;
+}
 
 /* ---------- Legend ---------- */
 
@@ -238,18 +255,6 @@ button {
   align-items: center;
   gap: 7px;
 }
-
-.dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.dot-period { background: var(--bloom); }
-.dot-fertile { background: var(--sage); }
-.dot-ovulation { background: var(--amber); }
-.dot-best { background: var(--amber); box-shadow: 0 0 0 3px var(--amber-soft); }
 
 /* ---------- Ledger (sidebar) ---------- */
 
@@ -447,6 +452,146 @@ button {
 .pill-btn-clear:hover {
   border-color: var(--ink-soft);
   color: var(--ink-soft);
+}
+
+.pill-btn--together:hover {
+  border-color: var(--together);
+  color: var(--together);
+}
+
+.pill-btn--together.pill-btn--active {
+  background: var(--together);
+  border-color: var(--together);
+  color: white;
+}
+
+.together-insight {
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.together-insight strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* ---------- Journey (cycle phase) panel ---------- */
+
+.journey-panel {
+  border: 1px solid var(--hairline);
+  padding: 28px;
+  margin-top: 32px;
+}
+
+.journey-panel h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 19px;
+  margin: 0 0 20px;
+}
+
+.journey-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 340px) 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .journey-body { grid-template-columns: 1fr; }
+}
+
+.journey-diagram {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 400 / 260;
+}
+
+.journey-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.tube-path {
+  fill: none;
+  stroke: var(--hairline);
+  stroke-width: 3;
+}
+
+.uterus-shape {
+  fill: var(--paper-raised);
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+
+.ovary-shape {
+  fill: var(--paper-raised);
+  stroke: var(--ink-soft);
+  stroke-width: 1.2;
+}
+
+.follicle {
+  fill: var(--amber);
+  transition: r 0.6s ease;
+}
+
+.anatomy-label {
+  font-family: var(--font-body);
+  font-size: 9px;
+  fill: var(--ink-soft);
+  text-anchor: middle;
+}
+
+.egg-marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 3px var(--amber-soft);
+  opacity: 0;
+  transition: left 0.9s ease, top 0.9s ease, opacity 0.4s ease;
+}
+
+.egg-marker::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.egg-marker--pulse {
+  animation: eggPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes eggPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .egg-marker--pulse { animation: none; }
+}
+
+.journey-caption {
+  font-size: 15px;
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+.journey-disclaimer {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  margin: 0;
+  line-height: 1.5;
 }
 
 textarea {
