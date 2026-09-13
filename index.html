@@ -35,10 +35,11 @@
       <div class="calendar-grid" id="calendarGrid"></div>
 
       <div class="legend">
-        <div class="legend-item"><i class="dot dot-period"></i> Period</div>
-        <div class="legend-item"><i class="dot dot-fertile"></i> Fertile window</div>
-        <div class="legend-item"><i class="dot dot-ovulation"></i> Ovulation day</div>
-        <div class="legend-item"><i class="dot dot-best"></i> Best days to try</div>
+        <div class="legend-item"><span class="cell-icon cell-icon--period" data-icon="drop"></span> Period</div>
+        <div class="legend-item"><span class="cell-icon cell-icon--fertile" data-icon="leaf"></span> Fertile window</div>
+        <div class="legend-item"><span class="cell-icon cell-icon--ovulation" data-icon="egg"></span> Ovulation day</div>
+        <div class="legend-item"><span class="cell-icon cell-icon--best" data-icon="best"></span> Best days to try</div>
+        <div class="legend-item"><span class="cell-icon cell-icon--together" data-icon="heart"></span> Time together</div>
       </div>
     </section>
 
@@ -75,6 +76,11 @@
 
       <div class="ledger-divider"></div>
 
+      <h2>Timing this cycle</h2>
+      <p class="together-insight" id="togetherInsight">Log a period to see timing insights.</p>
+
+      <div class="ledger-divider"></div>
+
       <h2>Cycle history</h2>
       <div id="historyList" class="history-list">
         <p class="empty-note">No periods logged yet. Tap a date on the calendar to begin.</p>
@@ -96,6 +102,31 @@
 
   </main>
 
+  <section class="journey-panel">
+    <h2>Where things stand today</h2>
+    <div class="journey-body">
+      <div class="journey-diagram">
+        <svg viewBox="0 0 400 260" class="journey-svg" aria-hidden="true">
+          <path class="tube-path" d="M70,92 C70,150 150,168 188,174"></path>
+          <path class="tube-path" d="M330,92 C330,150 250,168 212,174"></path>
+          <path class="uterus-shape" d="M160,174 C160,150 240,150 240,174 L246,214 C246,232 154,232 154,214 Z"></path>
+          <ellipse class="ovary-shape" cx="70" cy="88" rx="30" ry="22"></ellipse>
+          <ellipse class="ovary-shape" cx="330" cy="88" rx="30" ry="22"></ellipse>
+          <circle id="follicleLeft" class="follicle" cx="70" cy="88" r="4"></circle>
+          <circle id="follicleRight" class="follicle" cx="330" cy="88" r="4"></circle>
+          <text x="70" y="128" class="anatomy-label">Ovary</text>
+          <text x="330" y="128" class="anatomy-label">Ovary</text>
+          <text x="200" y="206" class="anatomy-label">Uterus</text>
+        </svg>
+        <div class="egg-marker" id="eggMarker"></div>
+      </div>
+      <div class="journey-text">
+        <p class="journey-caption" id="journeyCaption">Log your first period to see where things stand in your cycle.</p>
+        <p class="journey-disclaimer">An illustrative estimate based on typical cycle timing — not a real-time scan, and not a substitute for medical guidance.</p>
+      </div>
+    </div>
+  </section>
+
 </div>
 
 <!-- Day detail slide-in panel -->
@@ -114,6 +145,13 @@
       <button class="pill-btn" id="markStart">Mark as period start</button>
       <button class="pill-btn" id="markEnd">Mark as period end</button>
       <button class="pill-btn pill-btn-clear" id="clearPeriod">Clear</button>
+    </div>
+  </div>
+
+  <div class="day-panel-section">
+    <span class="section-label">Time together</span>
+    <div class="button-row">
+      <button class="pill-btn pill-btn--together" id="markTogether">Mark as time together</button>
     </div>
   </div>
 
